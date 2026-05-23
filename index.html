@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NQTRT – Profit Consistency Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+
+*,*::before,*::after{ margin:0; padding:0; box-sizing:border-box; }
+
+body{
+    font-family:'Inter',sans-serif;
+    background:#03030a;
+    color:white;
+    min-height:100vh;
+    overflow-x:hidden;
+    transition:font-size .2s;
+}
+
+/* Canvas background */
+#bgCanvas{
+    position:fixed; top:0; left:0;
+    width:100%; height:100%;
+    z-index:0; pointer-events:none;
+}
+
+.bgLogo{
+    position:fixed; top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    font-size:220px; font-weight:800;
+    pointer-events:none; user-select:none;
+    letter-spacing:20px; z-index:1; white-space:nowrap;
+    color:transparent;
+    -webkit-text-stroke:1.5px rgba(255,255,255,0.06);
+    animation:nqtrtPulse 5s ease-in-out infinite;
+}
+
+@keyframes nqtrtPulse{
+    0%,100%{
+        -webkit-text-stroke-color:rgba(255,255,255,0.04);
+        filter:drop-shadow(0 0 30px rgba(255,200,80,0.04));
+    }
+    50%{
+        -webkit-text-stroke-color:rgba(255,210,80,0.14);
+        filter:drop-shadow(0 0 60px rgba(255,200,80,0.12))
+               drop-shadow(0 0 120px rgba(255,200,80,0.06));
+    }
+}
+
+.glow{
+    position:fixed; width:500px; height:500px;
+    filter:blur(180px); opacity:.08; border-radius:50%;
+    top:-120px; right:-120px;
+    pointer-events:none; z-index:0;
+    background:#ffd86f;
+}
+
+.container{
+    position:relative; z-index:2;
+    max-width:1050px; margin:auto;
+    padding:40px 20px 60px;
+}
+
+/* ── Top bar ─────────────────────────── */
+.topBar{
+    display:flex; justify-content:space-between;
+    align-items:center; margin-bottom:36px;
+    flex-wrap:wrap; gap:16px;
+}
+
+.topBarRight{
+    display:flex; align-items:center; gap:12px;
+}
+
+.logo h1{
+    font-size:42px; font-weight:800;
+    background:linear-gradient(90deg,#fff,#ffd86f);
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+    background-clip:text; line-height:1;
+}
+.logo .sub{ color:#777; font-size:14px; margin-top:6px; }
+
+/* ── Language toggle ─────────────────── */
+.langToggle{
+    display:flex; align-items:center;
+    background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:50px; padding:4px; gap:2px;
+}
+
+.langBtn{
+    padding:8px 16px; border-radius:50px;
+    border:none; background:none;
+    color:#666; font-size:13px; font-weight:700;
+    cursor:pointer; transition:all .25s;
+    font-family:'Inter',sans-serif;
+    letter-spacing:.5px;
+}
+
+.langBtn.active{
+    background:rgba(255,216,111,.15);
+    color:#ffd86f;
+    border:1px solid rgba(255,216,111,.25);
+    box-shadow:0 0 12px rgba(255,216,111,.1);
+}
+
+.langBtn:hover:not(.active){ color:#aaa; }
+
+/* ── Status badge ────────────────────── */
+.status{
+    display:flex; align-items:center; gap:9px;
+    padding:12px 22px; border-radius:16px;
+    font-weight:700; font-size:14px;
+    letter-spacing:.5px; transition:all .35s;
+}
+.status .dot{
+    width:9px; height:9px; border-radius:50%;
+    flex-shrink:0; transition:all .35s;
+}
+.pass{ background:rgba(0,255,128,.10); color:#00ff99; border:1px solid rgba(0,255,128,.22); box-shadow:0 0 24px rgba(0,255,128,.12); }
+.pass .dot{ background:#00ff99; box-shadow:0 0 6px #00ff99; }
+.fail{ background:rgba(255,50,80,.10); color:#ff4d73; border:1px solid rgba(255,50,80,.22); box-shadow:0 0 24px rgba(255,50,80,.12); }
+.fail .dot{ background:#ff4d73; box-shadow:0 0 6px #ff4d73; }
+
+/* ── Main card ───────────────────────── */
+.mainCard{
+    background:rgba(18,18,18,.85);
+    backdrop-filter:blur(20px);
+    border:1px solid rgba(255,255,255,.06);
+    border-radius:32px; padding:36px;
+    box-shadow:0 0 80px rgba(0,0,0,.5),
+               inset 0 0 0 1px rgba(255,255,255,.02);
+}
+
+.sectionTitle{
+    font-size:12px; font-weight:700; color:#777;
+    text-transform:uppercase; letter-spacing:1.8px;
+    margin-bottom:24px;
+}
+
+/* ── Input grid ──────────────────────── */
+.grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+
+.box{
+    background:rgba(255,255,255,.03);
+    border:1px solid rgba(255,255,255,.06);
+    border-radius:20px; padding:20px 22px;
+    transition:border-color .25s,transform .25s;
+    cursor:text;
+}
+.box:hover{ border-color:rgba(255,216,111,.22); transform:translateY(-2px); }
+.box:focus-within{ border-color:rgba(255,216,111,.38); transform:translateY(-2px); }
+
+.label{
+    color:#888; font-size:13px; font-weight:700;
+    display:block; margin-bottom:10px; line-height:1.3;
+    transition:all .2s;
+}
+
+.inputRow{ display:flex; align-items:baseline; gap:4px; }
+.prefix,.suffix{ color:#555; font-size:20px; font-weight:700; }
+
+.input{
+    flex:1; background:none; border:none; outline:none;
+    color:white; font-size:28px; font-weight:700;
+    font-family:'Inter',sans-serif; width:100%; min-width:0;
+}
+.input::placeholder{ color:#333; }
+.input::-webkit-outer-spin-button,
+.input::-webkit-inner-spin-button{ -webkit-appearance:none; }
+.input[type=number]{ -moz-appearance:textfield; }
+
+/* ── Divider ─────────────────────────── */
+.divider{ height:1px; background:rgba(255,255,255,.05); margin:32px 0; }
+
+/* ── Result header ───────────────────── */
+.resultHeader{
+    display:flex; justify-content:space-between;
+    align-items:baseline; margin-bottom:16px;
+    flex-wrap:wrap; gap:8px;
+}
+.resultTitle{ font-size:12px; font-weight:700; color:#777; text-transform:uppercase; letter-spacing:1.8px; }
+.percentDisplay{ display:flex; align-items:baseline; gap:10px; }
+.percent{ font-size:36px; font-weight:800; transition:color .35s; letter-spacing:-1px; }
+.percentSub{ font-size:13px; color:#666; transition:color .3s; }
+
+/* ── Progress bar ────────────────────── */
+.progressContainer{
+    position:relative; width:100%; height:26px;
+    border-radius:50px; overflow:hidden;
+    border:1px solid rgba(255,255,255,.05);
+    background:linear-gradient(90deg,#00ff95 0%,#ffe26f 45%,#ff3d64 100%);
+}
+.progressMask{
+    position:absolute; top:0; right:0; bottom:0;
+    background:#161616;
+    transition:width .45s cubic-bezier(.4,0,.2,1);
+}
+.targetLine{
+    position:absolute; top:-4px; bottom:-4px;
+    width:3px; background:rgba(255,255,255,.85);
+    border-radius:2px; z-index:3; pointer-events:none;
+}
+.targetLine::after{
+    content:attr(data-label);
+    position:absolute; bottom:calc(100% + 7px);
+    left:50%; transform:translateX(-50%);
+    font-size:10px; font-weight:700;
+    color:rgba(255,255,255,.55);
+    white-space:nowrap; letter-spacing:.5px;
+    font-family:'Inter',sans-serif;
+}
+.progressScale{ display:flex; justify-content:space-between; padding:6px 2px 0; }
+.progressScale span{ font-size:11px; color:#484848; font-weight:500; }
+
+/* ── Stats ───────────────────────────── */
+.stats{ margin-top:28px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+.stat{
+    background:rgba(255,255,255,.03);
+    border:1px solid rgba(255,255,255,.05);
+    border-radius:20px; padding:22px;
+    transition:border-color .25s,transform .25s;
+}
+.stat:hover{ border-color:rgba(255,255,255,.1); transform:translateY(-1px); }
+.statLabel{ color:#777; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.9px; margin-bottom:10px; }
+.statValue{ font-size:30px; font-weight:800; letter-spacing:-.5px; transition:color .35s; min-height:40px; line-height:1.2; }
+.statSub{ font-size:12px; color:#555; margin-top:5px; min-height:16px; transition:color .3s; }
+
+/* ── Rule note ───────────────────────── */
+.ruleNote{
+    margin-top:20px; padding:14px 18px;
+    background:rgba(255,216,111,.04);
+    border:1px solid rgba(255,216,111,.11);
+    border-radius:14px; font-size:13px;
+    color:#888; line-height:1.65;
+}
+.ruleNote strong{ color:#ffd86f; }
+
+/* ── Error hint ──────────────────────── */
+.errorHint{
+    display:none; margin-top:12px; padding:11px 16px;
+    background:rgba(255,70,90,.07);
+    border:1px solid rgba(255,70,90,.18);
+    border-radius:12px; font-size:13px; color:#ff7090;
+}
+.errorHint.show{ display:block; }
+
+/* ── Goal section ────────────────────── */
+.goalSection{
+    margin-top:20px;
+    border:1px solid rgba(255,216,111,.18);
+    border-radius:24px; padding:26px;
+    background:rgba(255,216,111,.03);
+    position:relative; overflow:hidden;
+}
+.goalSection::before{
+    content:''; position:absolute;
+    top:-60px; right:-60px;
+    width:180px; height:180px;
+    background:#ffd86f; filter:blur(80px);
+    opacity:.06; pointer-events:none;
+}
+.goalSectionTitle{
+    font-size:11px; font-weight:700; color:#ffd86f;
+    text-transform:uppercase; letter-spacing:1.8px;
+    margin-bottom:20px;
+    display:flex; align-items:center; gap:8px;
+}
+.goalSectionTitle::before{
+    content:''; display:inline-block;
+    width:6px; height:6px; border-radius:50%;
+    background:#ffd86f; box-shadow:0 0 6px #ffd86f;
+}
+.goalGrid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+.goalCard{
+    background:rgba(255,255,255,.03);
+    border:1px solid rgba(255,216,111,.1);
+    border-radius:18px; padding:20px;
+    transition:border-color .25s,transform .25s;
+}
+.goalCard:hover{ border-color:rgba(255,216,111,.25); transform:translateY(-1px); }
+.goalCard.highlight{ background:rgba(255,216,111,.06); border-color:rgba(255,216,111,.22); }
+.goalCardLabel{ color:#888; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.9px; margin-bottom:10px; }
+.goalCardValue{ font-size:28px; font-weight:800; letter-spacing:-.5px; color:#ffd86f; transition:all .35s; }
+.goalCardSub{ font-size:12px; color:#666; margin-top:5px; }
+.goalBarWrap{ margin-top:18px; }
+.goalBarLabel{ display:flex; justify-content:space-between; font-size:12px; color:#666; margin-bottom:7px; }
+.goalBarLabel span:last-child{ color:#ffd86f; font-weight:600; }
+.goalBarContainer{ width:100%; height:8px; border-radius:50px; background:rgba(255,255,255,.05); overflow:hidden; }
+.goalBarFill{ height:100%; border-radius:50px; background:linear-gradient(90deg,#ffd86f,#ffaa00); transition:width .45s cubic-bezier(.4,0,.2,1); width:0%; }
+
+/* ── Footer ──────────────────────────── */
+.footer{ margin-top:28px; text-align:center; color:#505050; font-size:12px; }
+.footer strong{ color:#aaa; }
+
+/* ── Responsive ──────────────────────── */
+@media(max-width:760px){
+    .bgLogo{ font-size:90px; letter-spacing:10px; }
+    .logo h1{ font-size:32px; }
+    .grid{ grid-template-columns:1fr; }
+    .stats{ grid-template-columns:1fr; }
+    .goalGrid{ grid-template-columns:1fr; }
+    .mainCard{ padding:24px 18px; }
+    .percent{ font-size:28px; }
+    .statValue{ font-size:26px; }
+    .goalCardValue{ font-size:24px; }
+    .input{ font-size:24px; }
+    .topBar{ flex-direction:column; align-items:flex-start; }
+    .topBarRight{ width:100%; justify-content:space-between; }
+}
+
+</style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+<div class="bgLogo">NQTRT</div>
+<div class="glow"></div>
+
+<div class="container">
+
+    <div class="topBar">
+        <div class="logo">
+            <h1>NQTRT</h1>
+            <p class="sub" data-i18n="sub"></p>
+        </div>
+        <div class="topBarRight">
+
+            <!-- Language Toggle -->
+            <div class="langToggle">
+                <button class="langBtn" id="btnAr" onclick="setLang('ar')">AR</button>
+                <button class="langBtn" id="btnEn" onclick="setLang('en')">EN</button>
+            </div>
+
+            <div id="status" class="status fail">
+                <span class="dot"></span>
+                <span id="statusText"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="mainCard">
+
+        <p class="sectionTitle" data-i18n="sectionTitle"></p>
+
+        <div class="grid">
+
+            <div class="box" onclick="this.querySelector('input').focus()">
+                <label class="label" for="totalProfit" data-i18n="label_total"></label>
+                <div class="inputRow">
+                    <span class="prefix">$</span>
+                    <input type="number" id="totalProfit" class="input" placeholder="1000" min="0">
+                </div>
+            </div>
+
+            <div class="box" onclick="this.querySelector('input').focus()">
+                <label class="label" for="largestDay" data-i18n="label_largest"></label>
+                <div class="inputRow">
+                    <span class="prefix">$</span>
+                    <input type="number" id="largestDay" class="input" placeholder="400" min="0">
+                </div>
+            </div>
+
+            <div class="box" onclick="this.querySelector('input').focus()">
+                <label class="label" for="target" data-i18n="label_target"></label>
+                <div class="inputRow">
+                    <input type="number" id="target" class="input" placeholder="20" min="1" max="100">
+                    <span class="suffix">%</span>
+                </div>
+            </div>
+
+            <div class="box" onclick="this.querySelector('input').focus()">
+                <label class="label" for="dailyProfit" data-i18n="label_daily"></label>
+                <div class="inputRow">
+                    <span class="prefix">$</span>
+                    <input type="number" id="dailyProfit" class="input" placeholder="100" min="0">
+                </div>
+            </div>
+
+            <div class="box" style="grid-column:1/-1" onclick="this.querySelector('input').focus()">
+                <label class="label" for="goalProfit" data-i18n="label_goal"></label>
+                <div class="inputRow">
+                    <span class="prefix">$</span>
+                    <input type="number" id="goalProfit" class="input" placeholder="10000" min="0">
+                </div>
+            </div>
+
+        </div>
+
+        <div class="errorHint" id="errorHint"></div>
+
+        <div class="divider"></div>
+
+        <div class="resultHeader">
+            <span class="resultTitle" data-i18n="resultTitle"></span>
+            <div class="percentDisplay">
+                <span class="percent" id="percent">—</span>
+                <span class="percentSub" id="percentSub"></span>
+            </div>
+        </div>
+
+        <div class="progressContainer">
+            <div class="progressMask" id="progressMask" style="width:100%"></div>
+            <div class="targetLine" id="targetLine"></div>
+        </div>
+        <div class="progressScale">
+            <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+        </div>
+
+        <div class="stats">
+            <div class="stat">
+                <div class="statLabel" data-i18n="stat1"></div>
+                <div class="statValue" id="requiredTotal">—</div>
+                <div class="statSub" id="requiredSub"></div>
+            </div>
+            <div class="stat">
+                <div class="statLabel" data-i18n="stat2"></div>
+                <div class="statValue" id="neededProfit">—</div>
+                <div class="statSub" id="neededSub"></div>
+            </div>
+            <div class="stat">
+                <div class="statLabel" data-i18n="stat3"></div>
+                <div class="statValue" id="daysNeeded">—</div>
+                <div class="statSub" id="daysSub"></div>
+            </div>
+        </div>
+
+        <div class="ruleNote" id="ruleNote"></div>
+
+        <div class="goalSection" id="goalSection" style="display:none">
+            <div class="goalSectionTitle" data-i18n="goalTitle"></div>
+            <div class="goalGrid">
+                <div class="goalCard highlight">
+                    <div class="goalCardLabel" data-i18n="goalCard1"></div>
+                    <div class="goalCardValue" id="recDaily">—</div>
+                    <div class="goalCardSub" id="recDailySub"></div>
+                </div>
+                <div class="goalCard">
+                    <div class="goalCardLabel" data-i18n="goalCard2"></div>
+                    <div class="goalCardValue" id="goalDays">—</div>
+                    <div class="goalCardSub" id="goalDaysSub"></div>
+                </div>
+                <div class="goalCard">
+                    <div class="goalCardLabel" data-i18n="goalCard3"></div>
+                    <div class="goalCardValue" id="goalProgress">0%</div>
+                    <div class="goalCardSub" id="goalProgressSub"></div>
+                </div>
+            </div>
+            <div class="goalBarWrap">
+                <div class="goalBarLabel">
+                    <span id="goalBarLeft"></span>
+                    <span id="goalBarRight"></span>
+                </div>
+                <div class="goalBarContainer">
+                    <div class="goalBarFill" id="goalBarFill"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <span data-i18n="footer"></span> <strong>NQTRT</strong>
+        </div>
+
+    </div>
+</div>
+
+<script>
+
+/* ════════════════════════════════════════
+   TRANSLATIONS
+   ════════════════════════════════════════ */
+const LANG = {
+  ar: {
+    sub:         "حاسبة انتساق الأرباح",
+    sectionTitle:"مؤشرات التداول",
+    label_total: "إجمالي الربح الحالي",
+    label_largest:"أفضل يوم ربح",
+    label_target:"نسبة الانتساق المستهدفة",
+    label_daily: "متوسط الربح اليومي",
+    label_goal:  "🎯 هدف الربح المطلوب",
+    resultTitle: "مستوى الانتساق",
+    stat1:       "إجمالي الربح المطلوب",
+    stat2:       "الربح الإضافي المطلوب",
+    stat3:       "الأيام المقدرة",
+    goalTitle:   "تحليل الهدف",
+    goalCard1:   "الربح اليومي الموصى به",
+    goalCard2:   "أيام للوصول للهدف",
+    goalCard3:   "التقدم نحو الهدف",
+    footer:      "مصمم للمتداولين من قبل",
+    passing:     "ناجح",
+    notPassing:  "غير ناجح",
+    targetLabel: "هدف",
+    withinTarget:"✓ ضمن الهدف",
+    aboveTarget: "✗ فوق الهدف",
+    alreadyPassing:"ناجح بالفعل ✓",
+    toReachTarget: "للوصول للهدف",
+    neededFor:   "مطلوب لنسبة",
+    tradingDays: "يوم تداول",
+    enterDaily:  "أدخل متوسط الربح اليومي",
+    goalReached: "تم تحقيق الهدف! 🎉",
+    daysNeeded:  "يوم تداول مطلوب",
+    goalAchieved:"✓ تم تحقيق الهدف!",
+    ofGoal:      "من الهدف مكتمل",
+    currentLabel:"الحالي",
+    goalLabel:   "الهدف:",
+    maxPerDay:   "الحد الأقصى اليومي لنسبة",
+    consistency: "% انتساق",
+    errZero:     "إجمالي الربح وأفضل يوم يجب أن يكونا أكبر من صفر.",
+    errExceeds:  "أفضل يوم لا يمكن أن يتجاوز الربح الكلي.",
+    errRange:    "نسبة الانتساق يجب أن تكون بين 1% و100%.",
+    ruleText:    (tgt, pct) =>
+        `<strong>قاعدة الانتساق:</strong> أفضل يوم يجب أن يكون ≤ <strong>${tgt}%</strong> من إجمالي أرباحك. حالياً أفضل يوم لديك يمثّل <strong id="rulePercent">${pct}</strong> من الإجمالي.`,
+  },
+  en: {
+    sub:         "Profit Consistency Calculator",
+    sectionTitle:"Trading Metrics",
+    label_total: "Current Total Profit",
+    label_largest:"Largest Winning Day",
+    label_target:"Target Consistency",
+    label_daily: "Average Daily Profit",
+    label_goal:  "🎯 Required Profit Goal",
+    resultTitle: "Consistency Level",
+    stat1:       "Required Total Profit",
+    stat2:       "Additional Profit Needed",
+    stat3:       "Estimated Days Needed",
+    goalTitle:   "Goal Analysis",
+    goalCard1:   "Recommended Daily Profit",
+    goalCard2:   "Days to Reach Goal",
+    goalCard3:   "Goal Progress",
+    footer:      "Built for traders by",
+    passing:     "PASSING",
+    notPassing:  "NOT PASSING",
+    targetLabel: "TARGET",
+    withinTarget:"✓ within target",
+    aboveTarget: "✗ above target",
+    alreadyPassing:"already passing ✓",
+    toReachTarget: "to reach target",
+    neededFor:   "needed for",
+    tradingDays: "trading days",
+    enterDaily:  "enter avg daily profit",
+    goalReached: "Goal reached! 🎉",
+    daysNeeded:  "trading days needed",
+    goalAchieved:"✓ goal achieved!",
+    ofGoal:      "of goal completed",
+    currentLabel:"current",
+    goalLabel:   "Goal:",
+    maxPerDay:   "max/day for",
+    consistency: "% consistency",
+    errZero:     "Total profit and best day must both be greater than zero.",
+    errExceeds:  "Your best day cannot be greater than your total profit.",
+    errRange:    "Target consistency must be between 1% and 100%.",
+    ruleText:    (tgt, pct) =>
+        `<strong>Consistency Rule:</strong> Your best day must be ≤ <strong>${tgt}%</strong> of total profit. Currently your best day is <strong id="rulePercent">${pct}</strong> of your total.`,
+  }
+};
+
+/* ════════════════════════════════════════
+   STATE
+   ════════════════════════════════════════ */
+let currentLang = 'ar';
+
+/* ════════════════════════════════════════
+   ELEMENT REFS
+   ════════════════════════════════════════ */
+const E = id => document.getElementById(id);
+const inp = {
+    total:   E("totalProfit"),
+    largest: E("largestDay"),
+    target:  E("target"),
+    daily:   E("dailyProfit"),
+    goal:    E("goalProfit"),
+};
+const out = {
+    percent:      E("percent"),
+    percentSub:   E("percentSub"),
+    mask:         E("progressMask"),
+    targetLine:   E("targetLine"),
+    reqTotal:     E("requiredTotal"),
+    reqSub:       E("requiredSub"),
+    needed:       E("neededProfit"),
+    neededSub:    E("neededSub"),
+    days:         E("daysNeeded"),
+    daysSub:      E("daysSub"),
+    status:       E("status"),
+    statusText:   E("statusText"),
+    ruleNote:     E("ruleNote"),
+    errorHint:    E("errorHint"),
+    goalSection:  E("goalSection"),
+    recDaily:     E("recDaily"),
+    recDailySub:  E("recDailySub"),
+    goalDays:     E("goalDays"),
+    goalDaysSub:  E("goalDaysSub"),
+    goalProgress: E("goalProgress"),
+    goalProgressSub: E("goalProgressSub"),
+    goalBarFill:  E("goalBarFill"),
+    goalBarLeft:  E("goalBarLeft"),
+    goalBarRight: E("goalBarRight"),
+};
+
+/* ════════════════════════════════════════
+   LANGUAGE SWITCHER
+   ════════════════════════════════════════ */
+function setLang(code) {
+    currentLang = code;
+    const t = LANG[code];
+
+    /* HTML direction */
+    document.documentElement.lang = code;
+    document.documentElement.dir  = code === 'ar' ? 'rtl' : 'ltr';
+
+    /* Toggle button active state */
+    E("btnAr").classList.toggle("active", code === 'ar');
+    E("btnEn").classList.toggle("active", code === 'en');
+
+    /* Update all static [data-i18n] elements */
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+        const key = el.getAttribute("data-i18n");
+        if (t[key] !== undefined) el.textContent = t[key];
+    });
+
+    /* Re-run calculate to refresh all dynamic strings */
+    calculate();
+}
+
+/* ════════════════════════════════════════
+   HELPERS
+   ════════════════════════════════════════ */
+function T(key) { return LANG[currentLang][key]; }
+
+function fmtDollar(n) {
+    if (n >= 1_000_000) return "$" + (n / 1_000_000).toFixed(2) + "M";
+    if (n >= 1_000)     return "$" + Math.round(n).toLocaleString("en-US");
+    return "$" + n.toFixed(2);
+}
+
+function setStatus(passing) {
+    out.status.className   = "status " + (passing ? "pass" : "fail");
+    out.statusText.textContent = passing ? T("passing") : T("notPassing");
+}
+
+function reset() {
+    out.percent.textContent    = "—";
+    out.percent.style.color    = "white";
+    out.percentSub.textContent = "";
+    out.mask.style.width       = "100%";
+    out.reqTotal.textContent   = "—";
+    out.reqTotal.style.color   = "white";
+    out.needed.textContent     = "—";
+    out.needed.style.color     = "white";
+    out.days.textContent       = "—";
+    out.days.style.color       = "white";
+    out.reqSub.textContent     = "";
+    out.neededSub.textContent  = "";
+    out.daysSub.textContent    = "";
+    out.ruleNote.innerHTML     = "";
+    out.errorHint.textContent  = "";
+    out.errorHint.classList.remove("show");
+    out.goalSection.style.display = "none";
+    setStatus(false);
+}
+
+function showError(msg) {
+    reset();
+    out.errorHint.textContent = "⚠ " + msg;
+    out.errorHint.classList.add("show");
+}
+
+/* ════════════════════════════════════════
+   CALCULATE
+   ════════════════════════════════════════ */
+function calculate() {
+    const total   = parseFloat(inp.total.value);
+    const largest = parseFloat(inp.largest.value);
+    const tgtRaw  = parseFloat(inp.target.value);
+    const daily   = parseFloat(inp.daily.value);
+    const goal    = parseFloat(inp.goal.value);
+
+    const targetPct = (!isNaN(tgtRaw) && tgtRaw > 0 && tgtRaw <= 100) ? tgtRaw : 20;
+
+    /* Update target line */
+    out.targetLine.style.left    = Math.min(targetPct, 99) + "%";
+    out.targetLine.dataset.label = T("targetLabel") + " " + targetPct + "%";
+
+    /* Require both core inputs */
+    if (isNaN(total) || isNaN(largest)) { reset(); return; }
+
+    if (total <= 0 || largest <= 0) {
+        showError(T("errZero")); return;
+    }
+    if (largest > total) {
+        showError(T("errExceeds"));
+        out.mask.style.width = "0%"; return;
+    }
+    if (!isNaN(tgtRaw) && (tgtRaw <= 0 || tgtRaw > 100)) {
+        showError(T("errRange")); return;
+    }
+
+    out.errorHint.classList.remove("show");
+
+    /* Core */
+    const consistency = (largest / total) * 100;
+    const passing     = consistency <= targetPct;
+    const pctStr      = consistency.toFixed(2) + "%";
+
+    out.percent.textContent    = pctStr;
+    out.percent.style.color    = passing ? "#00ff99" : "#ff4d73";
+    out.percentSub.textContent = passing ? T("withinTarget") : T("aboveTarget");
+    out.percentSub.style.color = passing ? "#00c977" : "#cc3355";
+
+    out.mask.style.width = Math.max(0, 100 - Math.min(consistency, 100)) + "%";
+
+    /* Rule note */
+    out.ruleNote.innerHTML = T("ruleText")(targetPct, pctStr);
+
+    /* Stats */
+    const required = largest / (targetPct / 100);
+    const extra    = Math.max(required - total, 0);
+    const hasDaily = !isNaN(daily) && daily > 0;
+    const daysCalc = hasDaily ? Math.ceil(extra / daily) : null;
+
+    out.reqTotal.textContent = fmtDollar(required);
+    out.reqTotal.style.color = passing ? "#00ff99" : "white";
+    out.reqSub.textContent   = T("neededFor") + " " + targetPct + "%";
+
+    if (extra === 0) {
+        out.needed.textContent    = "$0";
+        out.needed.style.color    = "#00ff99";
+        out.neededSub.textContent = T("alreadyPassing");
+        out.neededSub.style.color = "#00c977";
+    } else {
+        out.needed.textContent    = fmtDollar(extra);
+        out.needed.style.color    = "white";
+        out.neededSub.textContent = T("toReachTarget");
+        out.neededSub.style.color = "#555";
+    }
+
+    if (extra === 0) {
+        out.days.textContent    = "0";
+        out.days.style.color    = "#00ff99";
+        out.daysSub.textContent = T("alreadyPassing");
+        out.daysSub.style.color = "#00c977";
+    } else if (daysCalc !== null) {
+        out.days.textContent    = daysCalc.toLocaleString();
+        out.days.style.color    = "white";
+        out.daysSub.textContent = T("tradingDays");
+        out.daysSub.style.color = "#555";
+    } else {
+        out.days.textContent    = "N/A";
+        out.days.style.color    = "#555";
+        out.daysSub.textContent = T("enterDaily");
+        out.daysSub.style.color = "#444";
+    }
+
+    setStatus(passing);
+
+    /* Goal Analysis */
+    if (!isNaN(goal) && goal > 0) {
+        out.goalSection.style.display = "block";
+
+        const recDailyVal  = goal * (targetPct / 100);
+        const goalExtra    = Math.max(goal - total, 0);
+        const goalDaysVal  = recDailyVal > 0 ? Math.ceil(goalExtra / recDailyVal) : 0;
+        const progressPct  = Math.min((total / goal) * 100, 100);
+        const goalReached  = total >= goal;
+
+        out.recDaily.textContent    = fmtDollar(recDailyVal);
+        out.recDailySub.textContent = T("maxPerDay") + " " + targetPct + T("consistency");
+
+        out.goalDays.textContent    = goalReached ? "0" : goalDaysVal.toLocaleString();
+        out.goalDays.style.color    = "#ffd86f";
+        out.goalDaysSub.textContent = goalReached ? T("goalReached") : T("daysNeeded");
+
+        out.goalProgress.textContent    = progressPct.toFixed(1) + "%";
+        out.goalProgressSub.textContent = goalReached ? T("goalAchieved") : T("ofGoal");
+
+        out.goalBarFill.style.width = progressPct + "%";
+        out.goalBarLeft.textContent  = fmtDollar(total) + " " + T("currentLabel");
+        out.goalBarRight.textContent = T("goalLabel") + " " + fmtDollar(goal);
+    } else {
+        out.goalSection.style.display = "none";
+    }
+}
+
+/* ════════════════════════════════════════
+   CANVAS — METEOR / STARFIELD
+   ════════════════════════════════════════ */
+(function(){
+    const canvas = document.getElementById('bgCanvas');
+    const ctx    = canvas.getContext('2d');
+
+    function resize(){
+        canvas.width  = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    /* ── Stars ───────────────────────────── */
+    const STAR_COUNT = 220;
+    let stars = [];
+
+    function initStars(){
+        stars = Array.from({length: STAR_COUNT}, () => ({
+            x:     Math.random() * canvas.width,
+            y:     Math.random() * canvas.height,
+            r:     Math.random() * 1.3 + 0.2,
+            baseO: Math.random() * 0.5 + 0.1,
+            phase: Math.random() * Math.PI * 2,
+            freq:  Math.random() * 0.008 + 0.003,
+        }));
+    }
+    initStars();
+    window.addEventListener('resize', initStars);
+
+    function drawStars(t){
+        stars.forEach(s => {
+            const o = s.baseO * (0.55 + 0.45 * Math.sin(s.phase + t * s.freq));
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255,255,255,${o})`;
+            ctx.fill();
+        });
+    }
+
+    /* ── Meteors ─────────────────────────── */
+    const ANGLE   = Math.PI / 4;         // 45° diagonal
+    const PALETTE = [
+        '255,255,255',   // pure white
+        '255,225,140',   // warm gold
+        '190,215,255',   // cold blue-white
+    ];
+
+    class Meteor {
+        constructor(burst){
+            this.reset(burst);
+        }
+        reset(burst){
+            // Spawn along top edge + right portion of left edge
+            if (Math.random() < 0.7){
+                this.x = Math.random() * (canvas.width + 300);
+                this.y = -10;
+            } else {
+                this.x = -10;
+                this.y = Math.random() * canvas.height * 0.5;
+            }
+            this.len   = burst
+                ? Math.random() * 250 + 150
+                : Math.random() * 160 + 60;
+            this.speed = burst
+                ? Math.random() * 7 + 5
+                : Math.random() * 4 + 2;
+            this.w     = Math.random() * 1.8 + 0.4;
+            this.ang   = ANGLE + (Math.random() - 0.5) * 0.18;
+            this.color = PALETTE[Math.floor(Math.random() * PALETTE.length)];
+            this.peak  = Math.random() * 0.7 + 0.25;
+            this.dist  = 0;
+            this.total = this.len + Math.hypot(canvas.width, canvas.height) * 1.1;
+            this.alive = true;
+        }
+        step(){
+            this.x   += Math.cos(this.ang) * this.speed;
+            this.y   += Math.sin(this.ang) * this.speed;
+            this.dist += this.speed;
+            if (this.dist > this.total) this.alive = false;
+        }
+        draw(){
+            /* fade in for first 30px, fade out for last 60px */
+            const fadeIn  = Math.min(1, this.dist / 30);
+            const fadeOut = Math.min(1, (this.total - this.dist) / 60);
+            const alpha   = this.peak * fadeIn * fadeOut;
+            if (alpha < 0.01) return;
+
+            const tx = this.x - Math.cos(this.ang) * this.len;
+            const ty = this.y - Math.sin(this.ang) * this.len;
+
+            /* Trail */
+            const grad = ctx.createLinearGradient(tx, ty, this.x, this.y);
+            grad.addColorStop(0,   `rgba(${this.color},0)`);
+            grad.addColorStop(0.6, `rgba(${this.color},${alpha * 0.35})`);
+            grad.addColorStop(1,   `rgba(${this.color},${alpha})`);
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(tx, ty);
+            ctx.lineTo(this.x, this.y);
+            ctx.strokeStyle = grad;
+            ctx.lineWidth   = this.w;
+            ctx.lineCap     = 'round';
+            ctx.stroke();
+
+            /* Head glow */
+            const glow = ctx.createRadialGradient(
+                this.x, this.y, 0,
+                this.x, this.y, this.w * 5
+            );
+            glow.addColorStop(0, `rgba(${this.color},${alpha})`);
+            glow.addColorStop(1, `rgba(${this.color},0)`);
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.w * 5, 0, Math.PI * 2);
+            ctx.fillStyle = glow;
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    let meteors  = [];
+    let frame    = 0;
+    let lastTime = 0;
+
+    /* Spawn schedule: quiet intervals with occasional cluster */
+    function maybeSpawn(){
+        /* steady trickle: ~1 meteor every 2-3 sec */
+        if (frame % 140 === 0 && meteors.length < 6){
+            meteors.push(new Meteor(false));
+        }
+        /* cluster burst every ~12 sec */
+        if (frame % 720 === 0){
+            const n = Math.floor(Math.random() * 3) + 2;
+            for (let i = 0; i < n; i++){
+                setTimeout(() => meteors.push(new Meteor(true)), i * 120);
+            }
+        }
+    }
+
+    function loop(ts){
+        requestAnimationFrame(loop);
+        frame++;
+
+        /* Solid dark sky */
+        ctx.fillStyle = '#03030a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        /* Subtle deep nebula glow — very slow breathing */
+        const nb = 0.018 + 0.006 * Math.sin(ts * 0.0003);
+        const ng = ctx.createRadialGradient(
+            canvas.width * 0.55, canvas.height * 0.3, 0,
+            canvas.width * 0.55, canvas.height * 0.3, canvas.width * 0.55
+        );
+        ng.addColorStop(0,   `rgba(80,40,140,${nb})`);
+        ng.addColorStop(0.5, `rgba(20,10,60,${nb * 0.4})`);
+        ng.addColorStop(1,   'rgba(0,0,0,0)');
+        ctx.fillStyle = ng;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        drawStars(ts);
+        maybeSpawn();
+
+        meteors = meteors.filter(m => {
+            m.draw();
+            m.step();
+            return m.alive;
+        });
+    }
+
+    requestAnimationFrame(loop);
+})();
+
+
+Object.values(inp).forEach(el => el.addEventListener("input", calculate));
+
+/* Start in Arabic */
+setLang('ar');
+
+</script>
+</body>
+</html>
